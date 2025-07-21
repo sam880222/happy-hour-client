@@ -1,6 +1,11 @@
 const baseURL = process.env.REACT_APP_API_BASE_URL;
 
-export const handleSubmit = async (currentQuestion, selectedAnswer) => {
+export const handleSubmit = async (
+  question,
+  stage,
+  selectedAnswer,
+  onSuccess
+) => {
   try {
     const response = await fetch(baseURL + "/submit", {
       method: "POST",
@@ -8,14 +13,16 @@ export const handleSubmit = async (currentQuestion, selectedAnswer) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        question: currentQuestion,
+        question,
+        stage,
         selection: selectedAnswer,
-        name: localStorage.getItem("NAME"),
+        id: localStorage.getItem("ID"),
       }),
     });
 
     if (response.ok) {
       console.log("Submission successful");
+      onSuccess?.();
     } else {
       console.error("Submission failed:", response.statusText);
     }

@@ -6,7 +6,6 @@ import {
   Button,
   FormControl,
   FormControlLabel,
-  FormLabel,
   Grid,
   Paper,
   Radio,
@@ -18,12 +17,15 @@ import { handleSubmit } from "./api";
 
 const defaultSelections = ["A", "B", "C", "D"];
 function App() {
-  const [showWelcome, setShowWelcome] = useState(!localStorage.getItem("NAME"));
+  const [showWelcome, setShowWelcome] = useState(true);
   const [name, setName] = useState(localStorage.getItem("NAME"));
   // const [images, setImages] = useState([])
-  const [currentQuestion, setCurrentQuestion] = useState(1);
+  const [qid, setQid] = useState(null);
+  const [stage, setStage] = useState(null);
   const [selections, setSelections] = useState(defaultSelections);
   const [selected, setSelected] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [submittedSelection, setSubmittedSelection] = useState(null);
 
   useEffect(() => {
     function onConnect() {
@@ -38,32 +40,45 @@ function App() {
       console.log("Message from server:", data);
     }
 
-    function onNext(data) {
-      const { qid, stage } = data;
+    function onUpdateQuestion(qid, stage) {
+      setQid(qid);
+      setStage(stage);
       console.log(qid, stage);
     }
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("message", onMessage);
-    socket.on("next", onNext);
+    socket.on("updateQuestion", onUpdateQuestion);
 
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("message", onMessage);
-      socket.off("next", onNext);
+      socket.off("updateQuestion", onUpdateQuestion);
     };
   });
 
   const onJoin = () => {
-    socket.emit("joinRoom");
-    setShowWelcome(false);
+    let id = localStorage.getItem("ID");
+    if (id === null) {
+      id = socket.id;
+      localStorage.setItem("ID", id);
+    }
+    socket.emit("joinRoom", id, name);
     localStorage.setItem("NAME", name);
+    setShowWelcome(false);
   };
 
-  const onSubmit = () => {
-    handleSubmit(currentQuestion, selected);
+  const onSubmit = async () => {
+    if (isLoading) {
+      return;
+    }
+    setIsLoading(true);
+    await handleSubmit(qid, stage, selected, () => {
+      setSubmittedSelection(selected);
+    });
+    setIsLoading(false);
   };
 
   return (
@@ -93,7 +108,12 @@ function App() {
             <Typography variant="h6">Please enter your name:</Typography>
             <TextField
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                let newValue = e.target.value;
+                if (newValue.length <= 24) {
+                  setName(newValue);
+                }
+              }}
               variant="standard"
               sx={{
                 width: "80%",
@@ -114,35 +134,46 @@ function App() {
         ) : (
           <Box>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              #{currentQuestion} Where it is?
+              {qid === null
+                ? "Waiting to start..."
+                : `#${qid + 1} Where it is?`}
             </Typography>
-            <FormControl>
-              <RadioGroup
-                name="radio-buttons-group"
-                value={selected}
-                onChange={(e) => setSelected(e.target.value)}
-              >
-                <Grid container>
-                  {defaultSelections.map((selection, index) => (
-                    <Grid size={6} key={selection}>
-                      <FormControlLabel
-                        value={selection}
-                        control={<Radio />}
-                        label={selections[index] ?? selection}
-                      />
-                    </Grid>
-                  ))}
-                </Grid>
-              </RadioGroup>
-              <Button
-                variant="outlined"
-                sx={{ mt: 2 }}
-                disabled={!selected}
-                onClick={onSubmit}
-              >
-                Submit
-              </Button>
-            </FormControl>
+            {!qid && [0, 1, 2].includes(stage) && (
+              <FormControl>
+                <RadioGroup
+                  name="radio-buttons-group"
+                  value={selected}
+                  onChange={(e) => setSelected(e.target.value)}
+                >
+                  <Grid container>
+                    {defaultSelections.map((selection, index) => (
+                      <Grid size={6} key={selection}>
+                        <FormControlLabel
+                          value={selection}
+                          control={<Radio />}
+                          label={selections[index] ?? selection}
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                </RadioGroup>
+                {submittedSelection && (
+                  <Typography color="success" sx={{ mt: 2 }}>
+                    You selected: {submittedSelection}
+                  </Typography>
+                )}
+                <Button
+                  variant="outlined"
+                  sx={{ mt: 2 }}
+                  disabled={
+                    !selected || isLoading || submittedSelection === selected
+                  }
+                  onClick={onSubmit}
+                >
+                  Submit
+                </Button>
+              </FormControl>
+            )}
           </Box>
         )}
       </Paper>
