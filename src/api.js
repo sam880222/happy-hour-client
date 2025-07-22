@@ -30,3 +30,39 @@ export const handleSubmit = async (
     console.error("Error submitting data:", error);
   }
 };
+
+export const getOptions = async (id) => {
+  try {
+    const response = await fetch(baseURL + `/question/${id}/options`, {
+      method: "GET",
+    });
+
+    if (response.ok) {
+      const data = await response.json(); // Parse the response as JSON
+      console.log("Get options successful");
+      return data;
+    } else {
+      console.error("Get options failed:", response.statusText);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
+};
+
+export const getAnswer = async (id) => {
+  try {
+    const response = await fetch(baseURL + `/question/${id}/answer`, {
+      method: "GET",
+    });
+
+    if (response.ok) {
+      const data = await response.json(); // Parse the response as JSON
+      console.log("Get answer successful");
+      return data;
+    } else {
+      console.error("Get answer failed:", response.statusText);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
+};

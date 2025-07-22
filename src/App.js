@@ -13,7 +13,15 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { handleSubmit } from "./api";
+import { getAnswer, getOptions, handleSubmit } from "./api";
+
+const Stage = {
+  hint1: 0,
+  hint2: 1,
+  hint3: 2,
+  answer: 3,
+  leaderboard: 4,
+};
 
 const defaultSelections = ["A", "B", "C", "D"];
 function App() {
@@ -22,10 +30,12 @@ function App() {
   // const [images, setImages] = useState([])
   const [qid, setQid] = useState(null);
   const [stage, setStage] = useState(null);
-  const [selections, setSelections] = useState(defaultSelections);
+  const [options, setOptions] = useState(null);
   const [selected, setSelected] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [submittedSelection, setSubmittedSelection] = useState(null);
+  const [answer, setAnswer] = useState(null);
+  const [sharer, setSharer] = useState(null);
 
   useEffect(() => {
     function onConnect() {
@@ -43,7 +53,30 @@ function App() {
     function onUpdateQuestion(qid, stage) {
       setQid(qid);
       setStage(stage);
-      console.log(qid, stage);
+      switch (stage) {
+        case Stage.hint1:
+          updateOptions(qid);
+          break;
+        case Stage.hint2:
+        case Stage.hint3:
+          if (options === null) {
+            updateOptions(qid);
+          }
+          break;
+        case Stage.answer:
+          if (options === null) {
+            updateOptions(qid);
+          }
+          updateAnswer(qid);
+          break;
+        case Stage.leaderboard:
+          setOptions(null);
+          setAnswer(null);
+          setSharer(null);
+          setSelected(null);
+          setSubmittedSelection(null);
+          break;
+      }
     }
 
     socket.on("connect", onConnect);
@@ -58,6 +91,17 @@ function App() {
       socket.off("updateQuestion", onUpdateQuestion);
     };
   });
+
+  const updateAnswer = async (id) => {
+    const { answer, name } = await getAnswer(id);
+    setAnswer(answer);
+    setSharer(name);
+  };
+
+  const updateOptions = async (id) => {
+    const options = await getOptions(id);
+    setOptions(options);
+  };
 
   const onJoin = () => {
     let id = localStorage.getItem("ID");
@@ -79,6 +123,20 @@ function App() {
       setSubmittedSelection(selected);
     });
     setIsLoading(false);
+  };
+
+  const getTitle = () => {
+    if (qid === null) {
+      return "Waiting to start...";
+    }
+    switch (stage) {
+      case Stage.answer:
+        return sharer + " is sharing...";
+      case Stage.leaderboard:
+        break;
+      default:
+        return `#${qid + 1} - Hint ${stage + 1}`;
+    }
   };
 
   return (
@@ -132,47 +190,77 @@ function App() {
             </Button>
           </Box>
         ) : (
-          <Box>
+          <Box display="flex" flexDirection="column" alignItems="center">
             <Typography variant="h6" sx={{ mb: 2 }}>
-              {qid === null
-                ? "Waiting to start..."
-                : `#${qid + 1} Where it is?`}
+              {getTitle()}
             </Typography>
-            {!qid && [0, 1, 2].includes(stage) && (
+            {qid !== null && stage < Stage.answer && (
               <FormControl>
                 <RadioGroup
                   name="radio-buttons-group"
                   value={selected}
-                  onChange={(e) => setSelected(e.target.value)}
+                  onChange={(e) => setSelected(Number(e.target.value))}
                 >
-                  <Grid container>
-                    {defaultSelections.map((selection, index) => (
-                      <Grid size={6} key={selection}>
-                        <FormControlLabel
-                          value={selection}
-                          control={<Radio />}
-                          label={selections[index] ?? selection}
-                        />
-                      </Grid>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "start",
+                    }}
+                  >
+                    {options?.map((option, index) => (
+                      <FormControlLabel
+                        key={option}
+                        value={index}
+                        control={<Radio />}
+                        label={String.fromCharCode(65 + index) + ". " + option}
+                      />
                     ))}
-                  </Grid>
+                  </Box>
                 </RadioGroup>
-                {submittedSelection && (
-                  <Typography color="success" sx={{ mt: 2 }}>
-                    You selected: {submittedSelection}
-                  </Typography>
-                )}
-                <Button
-                  variant="outlined"
-                  sx={{ mt: 2 }}
-                  disabled={
-                    !selected || isLoading || submittedSelection === selected
-                  }
-                  onClick={onSubmit}
-                >
-                  Submit
-                </Button>
               </FormControl>
+            )}
+            {qid !== null && stage !== Stage.leaderboard && answer !== null && (
+              <Typography sx={{ mt: 2 }}>
+                {"Answer: " +
+                  String.fromCharCode(65 + answer) +
+                  ". " +
+                  options?.[answer]}
+              </Typography>
+            )}
+            {qid !== null &&
+            stage !== Stage.leaderboard &&
+            submittedSelection !== null ? (
+              <Typography
+                color={
+                  answer !== null
+                    ? answer === submittedSelection
+                      ? "success"
+                      : "error"
+                    : "info"
+                }
+                sx={{ mt: 2 }}
+              >
+                {`You selected: ${String.fromCharCode(
+                  65 + submittedSelection
+                )}. ${options?.[submittedSelection]}`}
+              </Typography>
+            ) : (
+              <></>
+            )}
+            {qid !== null && stage < Stage.answer && (
+              <Button
+                variant="outlined"
+                sx={{ mt: 2 }}
+                disabled={
+                  selected === null ||
+                  isLoading ||
+                  submittedSelection === selected
+                }
+                onClick={onSubmit}
+              >
+                Submit
+              </Button>
             )}
           </Box>
         )}
