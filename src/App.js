@@ -6,7 +6,6 @@ import {
   Button,
   FormControl,
   FormControlLabel,
-  Grid,
   Paper,
   Radio,
   RadioGroup,
@@ -24,7 +23,6 @@ const Stage = {
   leaderboard: 4,
 };
 
-const defaultSelections = ["A", "B", "C", "D"];
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [name, setName] = useState(localStorage.getItem("NAME"));
@@ -79,6 +77,7 @@ function App() {
           updateScore(qid);
           break;
         case Stage.leaderboard:
+        default:
           setOptions(null);
           setAnswer(null);
           setSharer(null);
