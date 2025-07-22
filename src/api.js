@@ -66,3 +66,24 @@ export const getAnswer = async (id) => {
     console.error("Error:", error);
   }
 };
+
+export const getScore = async () => {
+  try {
+    const response = await fetch(
+      baseURL + `/score/${localStorage.getItem("ID")}`,
+      {
+        method: "GET",
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json(); // Parse the response as JSON
+      console.log("Get score successful");
+      return data;
+    } else {
+      console.error("Get score failed:", response.statusText);
+    }
+  } catch (error) {
+    console.error("Error:", error);
+  }
+};

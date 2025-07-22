@@ -13,7 +13,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { getAnswer, getOptions, handleSubmit } from "./api";
+import { getAnswer, getOptions, getScore, handleSubmit } from "./api";
+import UserView from "./components/UserView";
 
 const Stage = {
   hint1: 0,
@@ -36,9 +37,16 @@ function App() {
   const [submittedSelection, setSubmittedSelection] = useState(null);
   const [answer, setAnswer] = useState(null);
   const [sharer, setSharer] = useState(null);
+  const [score, setScore] = useState(null);
 
   useEffect(() => {
     function onConnect() {
+      let id = localStorage.getItem("ID");
+      if (name !== null && id !== null) {
+        socket.emit("joinRoom", id, name);
+        setShowWelcome(false);
+        updateScore(qid);
+      }
       console.log("Connected from the server");
     }
 
@@ -68,6 +76,7 @@ function App() {
             updateOptions(qid);
           }
           updateAnswer(qid);
+          updateScore(qid);
           break;
         case Stage.leaderboard:
           setOptions(null);
@@ -79,18 +88,43 @@ function App() {
       }
     }
 
+    function onRestarted() {
+      setQid(null);
+      setStage(null);
+      setOptions(null);
+      setSelected(null);
+      setIsLoading(false);
+      setSubmittedSelection(null);
+      setAnswer(null);
+      setSharer(null);
+      setScore(null);
+      let id = localStorage.getItem("ID");
+      if (name !== null && id !== null) {
+        socket.emit("joinRoom", id, name);
+        setShowWelcome(false);
+        updateScore(qid);
+      }
+    }
+
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("message", onMessage);
     socket.on("updateQuestion", onUpdateQuestion);
+    socket.on("restarted", onRestarted);
 
     return () => {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("message", onMessage);
       socket.off("updateQuestion", onUpdateQuestion);
+      socket.off("restarted", onRestarted);
     };
   });
+
+  const updateScore = async () => {
+    const score = await getScore();
+    setScore(score);
+  };
 
   const updateAnswer = async (id) => {
     const { answer, name } = await getAnswer(id);
@@ -133,7 +167,7 @@ function App() {
       case Stage.answer:
         return sharer + " is sharing...";
       case Stage.leaderboard:
-        break;
+        return `Current Score (Q${qid + 1})`;
       default:
         return `#${qid + 1} - Hint ${stage + 1}`;
     }
@@ -152,6 +186,9 @@ function App() {
         boxSizing: "content-box",
       }}
     >
+      {!showWelcome && name !== null && (
+        <UserView name={name} score={score?.score} />
+      )}
       <Paper
         sx={{
           width: "90%",
@@ -261,6 +298,14 @@ function App() {
               >
                 Submit
               </Button>
+            )}
+            {qid !== null && stage === Stage.leaderboard && (
+              <Box>
+                <Typography variant="h1" fontWeight="bold">
+                  {score?.score}
+                </Typography>
+                <Typography variant="h6">{"Rank #" + score?.rank}</Typography>
+              </Box>
             )}
           </Box>
         )}
