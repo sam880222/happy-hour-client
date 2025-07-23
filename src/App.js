@@ -259,7 +259,7 @@ function App() {
                 </RadioGroup>
               </FormControl>
             )}
-            {qid !== null && stage !== Stage.leaderboard && answer !== null && (
+            {qid !== null && stage === Stage.answer && answer !== null && (
               <Typography sx={{ mt: 2 }}>
                 {"Answer: " +
                   String.fromCharCode(65 + answer) +
