@@ -25,7 +25,7 @@ const Stage = {
 
 function App() {
   const [showWelcome, setShowWelcome] = useState(true);
-  const [name, setName] = useState(localStorage.getItem("NAME"));
+  const [name, setName] = useState(localStorage.getItem("NAME") ?? "");
   // const [images, setImages] = useState([])
   const [qid, setQid] = useState(null);
   const [stage, setStage] = useState(null);
@@ -40,10 +40,9 @@ function App() {
   useEffect(() => {
     function onConnect() {
       let id = localStorage.getItem("ID");
-      if (name !== null && id !== null) {
+      if (name !== "" && id !== null) {
         socket.emit("joinRoom", id, name);
         setShowWelcome(false);
-        updateScore(qid);
       }
       console.log("Connected from the server");
     }
@@ -59,6 +58,9 @@ function App() {
     function onUpdateQuestion(qid, stage) {
       setQid(qid);
       setStage(stage);
+      if (score === null) {
+        updateScore(qid);
+      }
       switch (stage) {
         case Stage.hint1:
           updateOptions(qid);
@@ -98,7 +100,7 @@ function App() {
       setSharer(null);
       setScore(null);
       let id = localStorage.getItem("ID");
-      if (name !== null && id !== null) {
+      if (name !== "" && id !== null) {
         socket.emit("joinRoom", id, name);
         setShowWelcome(false);
         updateScore(qid);
@@ -185,7 +187,7 @@ function App() {
         boxSizing: "content-box",
       }}
     >
-      {!showWelcome && name !== null && (
+      {!showWelcome && name !== "" && (
         <UserView name={name} score={score?.score} />
       )}
       <Paper
@@ -220,6 +222,7 @@ function App() {
               sx={{ mt: 4, maxWidth: "50%" }}
               variant="outlined"
               fullWidth
+              disabled={name === ""}
               onClick={onJoin}
             >
               Join
